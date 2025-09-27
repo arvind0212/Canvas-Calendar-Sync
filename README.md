@@ -8,8 +8,9 @@ Automatically sync assignment deadlines from KTH and Karolinska Institutet Canva
 - Creates calendar events 30 minutes before assignment due dates
 - Prevents duplicates using assignment ID tracking
 - Updates existing events when assignment details change
+- Filters assignments due within 12 weeks from current date
 - Comprehensive logging and error handling
-- Bi-weekly automated sync via cron
+- Bi-weekly automated sync via GitHub Actions
 
 ## Setup
 
@@ -69,14 +70,21 @@ source venv/bin/activate
 python main.py
 ```
 
-### Automated Sync (Cron)
+### Automated Sync (GitHub Actions)
 
-Add to crontab for bi-weekly sync (Mondays and Thursdays at 8 AM):
+The repository is configured with GitHub Actions for automatic bi-weekly sync (Mondays and Thursdays at 8 AM CEST).
 
+**Setup GitHub Secrets:**
+In your repository settings, add these secrets:
+- `KTH_CANVAS_TOKEN`: Your KTH Canvas access token
+- `KI_CANVAS_TOKEN`: Your KI Canvas access token
+- `GOOGLE_CREDENTIALS`: Contents of your `credentials.json` file
+- `GOOGLE_TOKEN`: Contents of your `token.json` file (after first manual run)
+
+**Manual Trigger:**
+You can manually trigger a sync using the "Actions" tab in GitHub or via GitHub CLI:
 ```bash
-crontab -e
-# Add this line:
-0 8 * * 1,4 /path/to/canvas-calendar-sync/venv/bin/python /path/to/canvas-calendar-sync/main.py >> /path/to/logs/sync.log 2>&1
+gh workflow run "Canvas Calendar Sync"
 ```
 
 ## Event Format
@@ -89,10 +97,10 @@ Calendar events are created with:
 
 ## Configuration
 
-Edit `config.py` to modify:
+The application filters and syncs assignments due within 12 weeks from the current date. You can modify settings in `config.py`:
 - `SYNC_WEEKS_AHEAD`: How far ahead to sync (default: 12 weeks)
 - `LOG_LEVEL`: Logging verbosity (default: INFO)
-- University configurations
+- University configurations and Canvas API endpoints
 
 ## Troubleshooting
 
@@ -106,8 +114,9 @@ Edit `config.py` to modify:
 - Re-run Google OAuth flow by deleting `token.json`
 
 ### Sync Failures
-- Check `sync.log` for detailed error messages
+- Check GitHub Actions logs or local `sync.log` for detailed error messages
 - Verify network connectivity to Canvas and Google APIs
+- Ensure GitHub Secrets are properly configured for automated runs
 
 ## File Structure
 
