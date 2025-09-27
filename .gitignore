@@ -1,0 +1,6 @@
+venv/
+.env
+*plan.md
+*.json
+*.pyc
+*.log

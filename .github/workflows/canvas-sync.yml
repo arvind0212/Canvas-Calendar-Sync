@@ -1,0 +1,37 @@
+name: Canvas Calendar Sync
+
+on:
+  schedule:
+    - cron: '0 8 * * 1,4'  # Mondays and Thursdays at 8 AM UTC
+  workflow_dispatch:  # Allow manual runs
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Create credentials and token files
+      run: |
+        echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
+        echo '${{ secrets.GOOGLE_TOKEN }}' > token.json
+
+    - name: Create environment file
+      run: |
+        echo "KTH_CANVAS_TOKEN=${{ secrets.KTH_CANVAS_TOKEN }}" > .env
+        echo "KI_CANVAS_TOKEN=${{ secrets.KI_CANVAS_TOKEN }}" >> .env
+        echo "LOG_LEVEL=INFO" >> .env
+
+    - name: Run sync
+      run: python main.py
