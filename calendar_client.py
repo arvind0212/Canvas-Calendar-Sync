@@ -48,14 +48,35 @@ class CalendarClient:
         if not html_text:
             return ""
 
-        # Remove HTML tags
-        clean_text = re.sub(r'<[^>]+>', '', html_text)
-        # Replace HTML entities
-        clean_text = clean_text.replace('&nbsp;', ' ')
+        # Handle HTML entities first to convert &lt; to < and &gt; to >
+        clean_text = html_text.replace('&nbsp;', ' ')
         clean_text = clean_text.replace('&amp;', '&')
         clean_text = clean_text.replace('&lt;', '<')
         clean_text = clean_text.replace('&gt;', '>')
-        # Clean up whitespace
+
+        # Extract and format complete links: <a ...href="url"...>text</a> -> text (url)
+        def replace_complete_link(match):
+            href = match.group(1)
+            text = match.group(2).strip() if match.group(2).strip() else "Link"
+            return f"{text} ({href})"
+
+        # Handle complete links with closing tags
+        clean_text = re.sub(r'<a[^>]*href="([^"]*)"[^>]*>([^<]*)</a>', replace_complete_link, clean_text)
+
+        # Handle broken/incomplete links - extract just the URL and add context
+        def replace_broken_link(match):
+            href = match.group(1)
+            # Try to extract a meaningful name from the URL
+            filename = href.split('/')[-1].split('?')[0] if '/' in href else href
+            return f"Link: {href}"
+
+        # Handle broken links (missing closing tag or cut off)
+        clean_text = re.sub(r'<a[^>]*href="([^"]*)"[^>]*(?:>.*?$|$)', replace_broken_link, clean_text, flags=re.MULTILINE | re.DOTALL)
+
+        # Remove any remaining HTML tags
+        clean_text = re.sub(r'<[^>]*>', '', clean_text)
+
+        # Clean up whitespace and line breaks
         clean_text = re.sub(r'\s+', ' ', clean_text).strip()
 
         return clean_text
@@ -73,7 +94,10 @@ class CalendarClient:
 
         description_parts = []
         if assignment.get('description'):
-            clean_desc = self._clean_html(assignment['description'][:300])
+            # Clean HTML first, then limit length to avoid cutting URLs mid-way
+            clean_desc = self._clean_html(assignment['description'])
+            if len(clean_desc) > 400:
+                clean_desc = clean_desc[:400] + "..."
             description_parts.append(clean_desc)
 
         if assignment.get('html_url'):

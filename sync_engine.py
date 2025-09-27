@@ -31,8 +31,9 @@ class SyncEngine:
         existing_description = existing_event.get('description', '')
         has_html_tags = '<' in existing_description and '>' in existing_description
         has_html_entities = '&lt;' in existing_description or '&gt;' in existing_description
+        has_broken_links = 'href=' in existing_description
 
-        if has_html_tags or has_html_entities:
+        if has_html_tags or has_html_entities or has_broken_links:
             return True
 
         return False
