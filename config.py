@@ -21,6 +21,7 @@ class Config:
     GOOGLE_CALENDAR_ID = 'arvindguruprasad33@gmail.com'
     SYNC_WEEKS_AHEAD = 12
 
+    GOOGLE_SERVICE_ACCOUNT_FILE = 'service-account.json'
     GOOGLE_CREDENTIALS_FILE = 'credentials.json'
     GOOGLE_TOKEN_FILE = 'token.json'
 

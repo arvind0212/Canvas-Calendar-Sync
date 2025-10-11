@@ -22,10 +22,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Create credentials and token files
+    - name: Create service account credentials
       run: |
-        echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
-        echo '${{ secrets.GOOGLE_TOKEN }}' > token.json
+        echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT }}' > service-account.json
 
     - name: Create environment file
       run: |

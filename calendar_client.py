@@ -6,6 +6,7 @@ from typing import List, Dict, Any, Optional
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+from google.oauth2 import service_account
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -25,21 +26,49 @@ class CalendarClient:
     def _authenticate(self):
         creds = None
 
-        if os.path.exists(Config.GOOGLE_TOKEN_FILE):
-            creds = Credentials.from_authorized_user_file(Config.GOOGLE_TOKEN_FILE, self.SCOPES)
+        # Check if service account credentials exist
+        if os.path.exists(Config.GOOGLE_SERVICE_ACCOUNT_FILE):
+            logger.info("Using service account authentication")
+            creds = service_account.Credentials.from_service_account_file(
+                Config.GOOGLE_SERVICE_ACCOUNT_FILE,
+                scopes=self.SCOPES
+            )
+        # Fall back to OAuth flow
+        elif os.path.exists(Config.GOOGLE_CREDENTIALS_FILE):
+            logger.info("Using OAuth authentication")
+            from google.auth.exceptions import RefreshError
 
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                if not os.path.exists(Config.GOOGLE_CREDENTIALS_FILE):
-                    raise FileNotFoundError(f"Google credentials file not found: {Config.GOOGLE_CREDENTIALS_FILE}")
+            if os.path.exists(Config.GOOGLE_TOKEN_FILE):
+                creds = Credentials.from_authorized_user_file(Config.GOOGLE_TOKEN_FILE, self.SCOPES)
 
-                flow = InstalledAppFlow.from_client_secrets_file(Config.GOOGLE_CREDENTIALS_FILE, self.SCOPES)
-                creds = flow.run_local_server(port=0)
+            if not creds or not creds.valid:
+                if creds and creds.expired and creds.refresh_token:
+                    try:
+                        creds.refresh(Request())
+                    except RefreshError as e:
+                        logger.warning(f"Token refresh failed: {e}")
+                        logger.warning("Token has expired or been revoked. Re-authentication required.")
+                        # In CI/CD environment, we can't run interactive auth
+                        if os.getenv('CI') or os.getenv('GITHUB_ACTIONS'):
+                            raise RuntimeError(
+                                "Google OAuth token has expired or been revoked. "
+                                "Please regenerate token.json locally and update the GOOGLE_TOKEN GitHub secret."
+                            ) from e
+                        # For local environment, proceed to interactive auth
+                        creds = None
 
-            with open(Config.GOOGLE_TOKEN_FILE, 'w') as token:
-                token.write(creds.to_json())
+                if not creds:
+                    flow = InstalledAppFlow.from_client_secrets_file(Config.GOOGLE_CREDENTIALS_FILE, self.SCOPES)
+                    creds = flow.run_local_server(port=0)
+
+                with open(Config.GOOGLE_TOKEN_FILE, 'w') as token:
+                    token.write(creds.to_json())
+        else:
+            raise FileNotFoundError(
+                f"No authentication credentials found. Please provide either:\n"
+                f"- Service account: {Config.GOOGLE_SERVICE_ACCOUNT_FILE}\n"
+                f"- OAuth credentials: {Config.GOOGLE_CREDENTIALS_FILE}"
+            )
 
         self.service = build('calendar', 'v3', credentials=creds)
         logger.info("Google Calendar authentication successful")
